@@ -3,32 +3,7 @@
 # functions
 source("https://raw.githubusercontent.com/timriffe/covid_age/master/Automation/00_Functions_automation.R")
 
-
-# Drive credentials
-drive_auth(email = email)
-gs4_auth(email = email)
-
-# info country and N drive address
-ctr <- "CA_Alberta"
-dir_n <- "N:/COVerAGE-DB/Automation/Hydra/"
-
 options(stringsAsFactors = F)
-
-
-#---------------------------- Reading in the historic tests from google docs
-
-ss <-"https://docs.google.com/spreadsheets/d/13UgFiuvTd3NJ60NDZwfgYzDK6WqYniL8K5xishu-xIM/edit#gid=0"
-
-# reading in the old data
-incoming <- read_sheet(ss, sheet = "tests", col_types = "cccccccccd")
-
-# --- grabbing the historic tests
-Historic_Tests <- incoming %>% filter(Measure == "Tests") 
-
-
-#----------------------------- Preparing case histories & testing data
-
-#--------- Downloading data
 
 df <- read_csv("https://www.alberta.ca/data/stats/covid-19-alberta-statistics-data.csv")
 
