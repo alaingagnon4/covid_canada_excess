@@ -1,13 +1,18 @@
-# AB covid data
 
-# functions
-source("https://raw.githubusercontent.com/timriffe/covid_age/master/Automation/00_Functions_automation.R")
+url <- "https://www.alberta.ca/data/stats/covid-19-alberta-statistics-data.csv"
+download.file(url, destfile = "data_input/confirmed_alberta.csv")
+# loading data
+df <- read_csv('data_input/confirmed_alberta.csv',
+               col_types = cols(.default = "c"))
 
-options(stringsAsFactors = F)
-
-df <- read_csv("https://www.alberta.ca/data/stats/covid-19-alberta-statistics-data.csv")
-
-
+df2 <- 
+  df %>% 
+  select(date = 2,
+         sex = 4,
+         age = 5,
+         status = 6) %>% 
+  filter(status == "Died") %>% 
+  mutate(age = str_sub(age, 1, 2))
 df$`Date reported` = ymd(df$`Date reported`)
 date <- Sys.Date() %>% format.Date("%d.%m.%Y")
 
