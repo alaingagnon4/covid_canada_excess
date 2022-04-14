@@ -157,6 +157,46 @@ pop2 %>%
 # Most plausible option seems to be the GAM model ignoring the StatCan 
 # projection estimates
 
+pop_test <-
+  pop_est2 %>%
+  bind_rows(pop_prj2) %>%
+  mutate(year_week = paste0(year, "-26"),
+         age = str_trim(age)) %>%
+  select(-year) %>%
+  arrange(region, sex, age, year_week) %>% 
+  complete(region, age, sex, year_week = weeks, fill = list(pop = NA, source = "fill")) %>%
+  group_by(region, age, sex) %>%
+  mutate(t = 1:n(),
+         w = ifelse(is.na(pop), 0, 1),
+         year = str_sub(year_week, 1, 4),
+         week = str_sub(year_week, 6, 7),
+         isoweek = paste0(year, "-W", week, "-7"),
+         date = ISOweek2date(isoweek))
+
+
+
+pop_test %>%
+  filter(year < 2030) %>% 
+  gather(starts_with("pre_"), key = type, value = pop_int) %>% 
+  filter(region %in% r,
+         sex == "t",
+         age == a) %>% 
+  ggplot()+
+  # geom_line(aes(date, pop_int, col = type))+
+  geom_point(aes(date, pop, col = source))+
+  facet_wrap(~region, scales = "free")+
+  theme_bw()
+
+
+
+
+
+
+
+
+
+
+
 pop3 <- 
   pop2 %>%  
   mutate(exposure = pre_gam_est / 52) %>% 

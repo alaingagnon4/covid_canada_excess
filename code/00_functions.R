@@ -185,14 +185,17 @@ simul_intvals <-
     return(ints_simul)
   }
 
+db_in <- chunk
 
+db_in <-
+  dts %>%
+  filter(age == "85",
+         region == "Canada",
+         sex == "m")
 
-# db_in <-
-#   dts %>%
-#   filter(age == "85",
-#          region == "Canada",
-#          sex == "m")
-
+db_in <-
+  dts %>%
+  filter(age == "80")
 
 # Generalized function for baseline fitting and prediction
 # ========================================================
@@ -459,6 +462,7 @@ estimate_baseline <-
     # predicting mortality baseline estimates
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     pred <- predict(model, type = "response", newdata = db_to_pred)
+    # exps <- db_to_pred$exposure
     
     db_bsln_a <- 
       db_to_pred %>% 
