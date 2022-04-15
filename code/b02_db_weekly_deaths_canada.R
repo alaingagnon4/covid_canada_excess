@@ -5,7 +5,7 @@ source("code/00_functions.R")
 dts <- read_csv("data_input/13100768-eng.zip",
                    col_types = cols(.default = "c"))
 
-pop <- read_rds("data_inter/weekly_exposures_province_age.rds")
+pop <- read_rds("data_inter/weekly_exposures_canada_age.rds")
 
 # mortality data
 # ~~~~~~~~~~~~~~~~~
@@ -21,31 +21,23 @@ dts2 <-
          date = ymd(date),
          age = str_remove(age, "Age at time of death, "),
          age = str_trim(str_sub(age, 1, 2)),
-         age = ifelse(age == "al", "All", age),
+         age = ifelse(age == "al", "all", age),
          sex = case_when(sex == "Both sexes" ~ "t",
                          sex == "Males" ~ "m",
                          sex == "Females" ~ "f"),
          dts = as.integer(dts),
          year = epiyear(date)
-         # isoweek = date2ISOweek(date),
-         # isoweek = paste0(str_sub(isoweek, 1, 9), "7")
          ) %>% 
   group_by(region, sex, age, year) %>% 
-  mutate(week = 1:n(),
-         isoweek = paste0(year, "-W", sprintf('%02d', week), "-7"))
+  mutate(week = 1:n()) %>% 
+  select(-week, -year)
 
 unique(dts2$age)
 unique(dts2$region)
 table(dts2$region)
 
-dts2 %>% 
-  select(year, week) %>% 
-  group_by(year) %>% 
-  summarise(weeks = max(week))
-
-
 r <- c("Quebec", "British Columbia", "Alberta")
-a <- "All"
+a <- "all"
 
 dts2 %>% 
   filter(region %in% r,
@@ -62,4 +54,4 @@ dts3 <-
   dts2 %>% 
   left_join(pop)
 
-write_rds(dts3, "weekly_deaths_exposures.rds")
+write_rds(dts3, "weekly_deaths_exposures_canada.rds")

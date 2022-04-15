@@ -6,12 +6,12 @@ prv_keep <-
     "British Columbia")
 
 dts <- 
-  read_rds("weekly_deaths_exposures.rds") %>% 
-  mutate(week = str_sub(isoweek, 7,8),
-         week = week %>% as.double(),
-         year = epiyear(date)) %>% 
-  filter(region %in% prv_keep)
-
+  read_rds("weekly_deaths_exposures_canada.rds") %>% 
+  # mutate(week = str_sub(isoweek, 7,8),
+  #        week = week %>% as.double(),
+  #        year = epiyear(date)) %>% 
+  filter(region %in% prv_keep) %>% 
+  mutate(week = epiweek(date))
 
 unique(dts$region)
 
@@ -70,7 +70,30 @@ bsn <-
                        pred_invals)) %>% 
   ungroup()
 
-write_rds(bsn, "data_inter/baseline_mortality.rds")
+write_rds(bsn, "data_inter/baseline_mortality_canada.rds")
+
+# test using 2010-2019 data
+id_f = "2010-01-01"
+ld_f = "2020-03-01"
+bsn <- 
+  dts %>% 
+  # group_by(region, sex, age) %>% 
+  group_by(region, sex, age) %>% 
+  do(estimate_baseline(db_in = .data,
+                       id_f,
+                       ld_f,
+                       exc_wks_ba_peak,
+                       exc_wks,
+                       id_p,
+                       ld_p,
+                       exc_outlrs,
+                       outlrs_thld,
+                       sec_trend_comp,
+                       seasonal_comp,
+                       pred_invals)) %>% 
+  ungroup()
+
+write_rds(bsn, "data_inter/baseline_mortality_canada_2010_2019.rds")
 
 # # test run using loops to identify problematic cases ====
 # # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

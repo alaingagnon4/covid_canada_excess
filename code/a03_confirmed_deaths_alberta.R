@@ -56,7 +56,7 @@ dts_all_age <-
   group_by(date, sex) %>% 
   summarise(new = sum(new)) %>% 
   ungroup() %>% 
-  mutate(age = "All")
+  mutate(age = "all")
 
 dts_all_age_sex <- 
   dts2 %>% 
@@ -64,7 +64,7 @@ dts_all_age_sex <-
   summarise(new = sum(new)) %>% 
   ungroup() %>% 
   mutate(sex = "t",
-         age = "All")
+         age = "all")
 
 dts3 <- 
   dts2 %>% 
@@ -89,11 +89,11 @@ dts4 <-
 # write_rds(dts4, "data_inter/confirmed_deaths_alberta.rds")
 
 
-# harmonizing Ontario ages to those of StatCan ====
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# harmonizing Alberta ages to those of StatCan ====
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 dts5 <- 
   dts4 %>% 
-  filter(age != "All") %>% 
   group_by(date, sex) %>% 
   do(harmonize_age_statcan(db = .data)) %>% 
   ungroup()
@@ -123,7 +123,7 @@ daily_all <-
 # both data
 dts_both <- 
   dts4 %>% 
-  filter(sex == "t", age == "All") %>% 
+  filter(sex == "t", age == "all") %>% 
   select(date, new, source) %>% 
   bind_rows(daily_all %>% 
               select(date, new, source))
@@ -145,7 +145,7 @@ dts_both %>%
 # imputation of age structure
 age_dist <- 
   dts5 %>% 
-  filter(age != "All", 
+  filter(age != "all", 
          sex != "t") %>% 
   mutate(date = date + days(14)) %>% 
   group_by(date) %>% 
@@ -194,7 +194,6 @@ dts_both %>%
   ggplot()+
   geom_line(aes(date, new, col = source))+
   theme_bw()
-
 
 age_dist3 %>% 
   ggplot()+

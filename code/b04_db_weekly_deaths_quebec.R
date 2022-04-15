@@ -5,7 +5,8 @@ source("code/00_functions.R")
 dts <- read_xlsx("data_input/DecesSemaine_QC_GrAge.xlsx",
                  skip = 5)
 
-pop <- read_rds("data_inter/weekly_exposures_quebec_age.rds")
+pop <- 
+  read_rds("data_inter/weekly_exposures_quebec_age.rds")
 
 # mortality data
 # ~~~~~~~~~~~~~~~~~
@@ -21,15 +22,11 @@ dts2 <-
          age = case_when(age == "0-" ~ "0",
                          age == "To" ~ "all",
                          TRUE ~ age),
-         # sex = case_when(sex == "Both sexes" ~ "t",
-         #                 sex == "Males" ~ "m",
-         #                 sex == "Females" ~ "f"),
          dts = as.integer(dts)
   ) %>% 
   group_by(age, year) %>% 
   mutate(week = 1:n(),
-         isoweek = paste0(year, "-W", sprintf('%02d', week), "-7"),
-         date = ISOweek2date(isoweek)) %>% 
+         date = MMWRweek2Date(MMWRyear=year,MMWRweek=week,MMWRday=7)) %>% 
   ungroup() %>% 
   drop_na(dts)
 
@@ -40,6 +37,10 @@ dts2 %>%
   group_by(year) %>% 
   summarise(weeks = max(week))
 
+pop %>% 
+  select(year, week) %>% 
+  group_by(year) %>% 
+  summarise(weeks = max(week))
 
 # r <- c("Quebec", "British Columbia", "Alberta")
 a <- "all"

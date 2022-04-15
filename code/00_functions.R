@@ -9,6 +9,7 @@ library(lubridate)
 library(ISOweek)
 library(mgcv)
 library(ungroup)
+library(MMWRweek)
 
 options(scipen=999)
 
@@ -21,12 +22,19 @@ weeks_dates <-
          year = epiyear(date),
          week = isoweek(date))
 
+
 # age harmonization in the same age groups as StatCan ====
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 harmonize_age_statcan <- function(db, lambda = 100){
   
-  age <- db$age %>% as.integer()
-  dts <- db$dts
+  temp1 <- 
+    db %>% 
+    filter(age != "all") %>% 
+    mutate(age = age %>% as.double())
+  
+  age <- temp1$age
+  dts <- temp1$dts
+  
   nlast <- 101 - max(age)
   
   # without offset
@@ -35,7 +43,42 @@ harmonize_age_statcan <- function(db, lambda = 100){
              # offset = pops,
              nlast = nlast)$fitted
   
-  out <- 
+  tibble(age = seq(0, 100, 1), dts = V1) %>% 
+    mutate(age = case_when(age <= 44 ~ 0,
+                           age %in% 45:64 ~ 45,
+                           age %in% 65:84 ~ 65,
+                           age %in% 85:110 ~ 85,
+                           TRUE ~ NA_real_)) %>% 
+    group_by(age) %>% 
+    summarise(dts = sum(dts)) %>% 
+    ungroup() %>% 
+    mutate(age = age %>% as.character) %>% 
+    bind_rows(db %>% 
+                filter(age == "all") %>% 
+                select(age, dts))
+}
+
+# age harmonization in the same age groups as StatCan ====
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+harmonize_age_statcan_isq <- function(db, lambda = 100){
+  
+  temp1 <- 
+    db %>% 
+    filter(age != "all") %>% 
+    mutate(age = age %>% as.double())
+  
+  age <- temp1$age
+  dts <- temp1$dts
+  
+  nlast <- 101 - max(age)
+  
+  # without offset
+  V1 <- pclm(x = age, 
+             y = dts, 
+             # offset = pops,
+             nlast = nlast)$fitted
+  
+  stc <- 
     tibble(age = seq(0, 100, 1), dts = V1) %>% 
     mutate(age = case_when(age <= 44 ~ 0,
                            age %in% 45:64 ~ 45,
@@ -43,9 +86,70 @@ harmonize_age_statcan <- function(db, lambda = 100){
                            age %in% 85:110 ~ 85,
                            TRUE ~ NA_real_)) %>% 
     group_by(age) %>% 
-    summarise(dts = sum(dts))
+    summarise(dts = sum(dts)) %>% 
+    bind_rows(db %>% 
+                filter(age == "all") %>% 
+                select(age, dts)) %>% 
+    mutate(format = "statcan")
+  
+  isq <- 
+    tibble(age = seq(0, 100, 1), dts = V1) %>% 
+    mutate(age = case_when(age <= 49 ~ 0,
+                           age %in% 50:59 ~ 50,
+                           age %in% 60:69 ~ 60,
+                           age %in% 70:79 ~ 70,
+                           age %in% 80:89 ~ 80,
+                           age >= 90 ~ 90,
+                           TRUE ~ NA_real_)) %>% 
+    group_by(age) %>% 
+    summarise(dts = sum(dts)) %>% 
+    ungroup() %>% 
+    bind_rows(db %>% 
+                filter(age == "all") %>% 
+                select(age, dts)) %>% 
+    mutate(format = "isq")
+
+  out <- 
+    bind_rows(stc, isq)
   
   return(out)
+  
+}
+
+# age harmonization in the same age groups as ISQ ====
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+harmonize_age_isq <- function(db, lambda = 100){
+  
+  temp1 <- 
+    db %>% 
+    filter(age != "all") %>% 
+    mutate(age = age %>% as.double())
+  
+  age <- temp1$age
+  dts <- temp1$dts
+  
+  nlast <- 101 - max(age)
+  
+  # without offset
+  V1 <- pclm(x = age, 
+             y = dts, 
+             # offset = pops,
+             nlast = nlast)$fitted
+  
+  tibble(age = seq(0, 100, 1), dts = V1) %>% 
+    mutate(age = case_when(age <= 49 ~ 0,
+                           age %in% 50:59 ~ 50,
+                           age %in% 60:69 ~ 60,
+                           age %in% 70:79 ~ 70,
+                           age %in% 80:89 ~ 80,
+                           age >= 90 ~ 90,
+                           TRUE ~ NA_real_)) %>% 
+    group_by(age) %>% 
+    summarise(dts = sum(dts)) %>% 
+    bind_rows(db %>% 
+                filter(age == "all") %>% 
+                select(age, dts))
+  
 }
 
 # db_d <- temp1
@@ -185,17 +289,17 @@ simul_intvals <-
     return(ints_simul)
   }
 
-db_in <- chunk
-
-db_in <-
-  dts %>%
-  filter(age == "85",
-         region == "Canada",
-         sex == "m")
-
-db_in <-
-  dts %>%
-  filter(age == "80")
+# db_in <- chunk
+# 
+# db_in <-
+#   dts %>%
+#   filter(age == "85",
+#          region == "Canada",
+#          sex == "m")
+# 
+# db_in <-
+#   dts %>%
+#   filter(age == "80")
 
 # Generalized function for baseline fitting and prediction
 # ========================================================
@@ -207,7 +311,7 @@ estimate_baseline <-
     exc_wks_ba_peak = 6,
     exc_wks = c(),
     id_p = "1976-01-01",
-    ld_p = "2020-12-31",
+    ld_p = "2021-12-31",
     exc_outlrs = T,
     outlrs_thld = 0.8,
     sec_trend_comp = "pspline",
@@ -537,9 +641,14 @@ estimate_baseline <-
     
   }
 
+
 epiyear <- function(x){
   # x <- ymd("2010-01-09")
   dn <- 1 + (wday(x) + 6) %% 7
   nth <- x + days(4 - dn)
   year(nth)
+}
+
+cdc_date <- function(y, w){
+  date1 <- ISOweek2date(paste0(y, "-W01-7"))-1 + ((w-1)*7)
 }
