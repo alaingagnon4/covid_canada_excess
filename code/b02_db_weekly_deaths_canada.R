@@ -2,7 +2,7 @@ source("code/00_functions.R")
 
 # loading mortality data from StatCan files
 # https://www150.statcan.gc.ca/t1/tbl1/en/cv.action?pid=1310076801
-dts <- read_csv("data_input/13100768-eng.zip",
+dts <- read_csv("data_input/1310076801_databaseLoadingData.csv",
                    col_types = cols(.default = "c"))
 
 pop <- read_rds("data_inter/weekly_exposures_canada_age.rds")
@@ -30,7 +30,9 @@ dts2 <-
          ) %>% 
   group_by(region, sex, age, year) %>% 
   mutate(week = 1:n()) %>% 
+  ungroup() %>% 
   select(-week, -year)
+  
 
 unique(dts2$age)
 unique(dts2$region)

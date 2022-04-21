@@ -316,11 +316,9 @@ estimate_baseline <-
     outlrs_thld = 0.8,
     sec_trend_comp = "pspline",
     seasonal_comp = "sincos_1",
-    pred_invals = 0.95,
-    save_plot = T,
-    save_csv = T
+    pred_invals = 0.95
   ){
-    
+
     # define periods to fit and predict (train and prediction data)
     fit_per <- 
       seq(ymd(id_f), ymd(ld_f), 
@@ -536,7 +534,7 @@ estimate_baseline <-
         left_join(simul_intvals(model1, 
                                 model_type, 
                                 db_to_pred, 
-                                500, 
+                                200, 
                                 outlrs_thld),
                   by = "date") %>% 
         mutate(outlier = ifelse(dts > up & !is.na(dts), 1, 0)) %>% 
@@ -568,7 +566,7 @@ estimate_baseline <-
     pred <- predict(model, type = "response", newdata = db_to_pred)
     # exps <- db_to_pred$exposure
     
-    db_bsln_a <- 
+    db_bsln <- 
       db_to_pred %>% 
       left_join(outlrs,
                 by = "date") %>% 
@@ -577,20 +575,14 @@ estimate_baseline <-
       left_join(simul_intvals(model, 
                               model_type, 
                               db_to_pred, 
-                              500, 
+                              200, 
                               pred_invals),
                 by = "date")
-    
-    # appending to other ages estimates
-    db_bslns <- 
-      db_bsln_a 
-    
-    
     
     # output_data tibble with estimates
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     db_out <- 
-      db_bslns %>% 
+      db_bsln %>% 
       select(t, date, week, exposure, dts, ws, to_pred,
              seas_peak, outlier, bsn, lp, up) %>% 
       mutate(model_spec = paste0(sec_trend_comp, "_", seasonal_comp),
@@ -605,38 +597,7 @@ estimate_baseline <-
              bsn_mx = bsn / exposure,
              lp_mx = lp / exposure,
              up_mx = up / exposure)
-    
-    
-    # preparing metadata
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    
-    # # names for plot and csv files
-    # file_name <- paste0("sex_", str_flatten(sexes, "_"),
-    #                     "_age_", str_flatten(ages, "_"),
-    #                     "_model_", paste0(sec_trend_comp, "_", seasonal_comp),
-    #                     "_weeks_exc_", exc_wks_ba_peak,
-    #                     "_outliers_exc_", paste0(exc_outlrs, "_at_", outlrs_thld),
-    #                     "_pred_invals_", pred_invals)
-    # 
-    # 
-    # plot_title <- paste0("sex_", str_flatten(sexes, "_"),
-    #                      "_age_", str_flatten(ages, "_"),
-    #                      ", model: ", paste0(sec_trend_comp, "_", seasonal_comp),
-    #                      ", weeks exc: ", exc_wks_ba_peak,
-    #                      ", outliers exc: ", paste0(exc_outlrs, "_at_", outlrs_thld),
-    #                      ", pred: ", pred_invals)
-    # 
-    # plot_sub_title <- paste0("fitted ", id_f, " to ", ld_f,
-    #                          ", predicted ", id_p, " to ", ld_p)
-    
-    # meta <<-
-    #   list(sxs_dim = length(unique(db_out$sex)),
-    #        ags_dim = length(unique(db_out$age)),
-    #        per_dim = length(unique(db_out$date)),
-    #        plot_title = plot_title,
-    #        plot_sub_title = plot_sub_title,
-    #        file_name = file_name)
-    
+
     return(db_out)
     
   }

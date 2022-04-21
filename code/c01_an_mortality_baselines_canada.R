@@ -55,6 +55,7 @@ unique(dts$region)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 bsn <- 
   dts %>% 
+  mutate(year = year(date)) %>% 
   group_by(region, sex, age) %>% 
   do(estimate_baseline(db_in = .data,
                        id_f,
@@ -77,6 +78,7 @@ id_f = "2010-01-01"
 ld_f = "2020-03-01"
 bsn <- 
   dts %>% 
+  mutate(year = year(date)) %>% 
   # group_by(region, sex, age) %>% 
   group_by(region, sex, age) %>% 
   do(estimate_baseline(db_in = .data,

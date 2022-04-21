@@ -99,6 +99,9 @@ dts5 <-
   ungroup()
 
 
+
+# loading daily new deaths in ALberta  
+
 daily_all <- 
   read_csv("data_input/covid-19-alberta-statistics-summary-data.csv",
            col_types = cols(.default = "c")) %>% 
