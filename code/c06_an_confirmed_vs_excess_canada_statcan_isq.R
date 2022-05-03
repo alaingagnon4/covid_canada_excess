@@ -84,7 +84,7 @@ all <-
          new_up = exc_up) %>% 
   filter(region %in% rgs) %>% 
   bind_rows(conf) %>% 
-  filter(!(region == "Ontario" & date >= "2021-11-01"))
+  filter(!(region == "Ontario" & date >= "2021-11-01" & source %in% c("excess_10_19", "excess_10_15")))
 
 unique(all$date)
 
@@ -112,37 +112,45 @@ ggsave("figures/comparison_confirmed_excess_canada_statcan_isq.pdf",
 
 
 unique(all$source)
+# all2 <- 
+#   all %>% 
+#   select(source, date, region, sex, age, new) %>% 
+#   spread(source, new) %>% 
+#   drop_na() %>% 
+#   mutate(ratio_log = ifelse(confirmed > 0 & excess_15_19 > 0, log(excess_15_19 / confirmed), log(1)),
+#          ratio = ifelse(confirmed > 0 & excess_15_19 > 0, excess_15_19 / confirmed, 1))
+
 all2 <- 
   all %>% 
   select(source, date, region, sex, age, new) %>% 
   spread(source, new) %>% 
   drop_na() %>% 
-  mutate(ratio_log = ifelse(confirmed > 0 & excess_15_19 > 0, log(excess_15_19 / confirmed), log(1)),
-         ratio = ifelse(confirmed > 0 & excess_15_19 > 0, excess_15_19 / confirmed, 1))
+  mutate(ratio_log = log(excess_15_19 / confirmed),
+         ratio = ifelse(confirmed > 0 & excess_15_19 > 0, excess_15_19 / confirmed, NA))
 
 max(all2$ratio)
 min(all2$ratio)
 
 
 
-all2 %>% 
-  filter(sex == "t") %>% 
-  ggplot()+
-  geom_tile(aes(date, age, fill = ratio))+
-  facet_wrap(region~.)+
-  scale_fill_gradient2()+
-  labs(title = "ratio excess / confirmed")+
-  theme_bw()
-
-
-all2 %>% 
-  filter(sex == "t") %>% 
-  ggplot()+
-  geom_tile(aes(date, age, fill = ratio_log))+
-  facet_wrap(region~.)+
-  scale_fill_gradient2()+
-  labs(title = "ratio excess / confirmed")+
-  theme_bw()
+# all2 %>% 
+#   filter(sex == "t") %>% 
+#   ggplot()+
+#   geom_tile(aes(date, age, fill = ratio))+
+#   facet_wrap(region~.)+
+#   scale_fill_gradient2()+
+#   labs(title = "ratio excess / confirmed")+
+#   theme_bw()
+# 
+# 
+# all2 %>% 
+#   filter(sex == "t") %>% 
+#   ggplot()+
+#   geom_tile(aes(date, age, fill = ratio_log))+
+#   facet_wrap(region~.)+
+#   scale_fill_gradient2()+
+#   labs(title = "ratio excess / confirmed")+
+#   theme_bw()
 
 
 
@@ -152,14 +160,21 @@ col2 <- c(colorRampPalette(c("#03045e", "#caf0f8"), space = "Lab")(qt),
           "white",
           colorRampPalette(c("#fff0f3", "#c1121f"), space = "Lab")(qt))
 
+col2 <- c(colorRampPalette(c("#c1121f", "#fff0f3"), space = "Lab")(qt),
+          "white",
+          colorRampPalette(c("#caf0f8", "#03045e"), space = "Lab")(qt))
+
+
+
 # breaks_mc <- c(0, seq(0.5, 2, 0.1), 100)
 breaks_mc <- c(0, seq(0.5, 0.9, 0.1), 
-               0.98, 1.02,
+               0.95, 1/.95,
                1/rev(seq(0.5, 0.9, 0.1)), 100)
 
 all3 <- 
   all2 %>% 
-  mutate(ratio_cut = cut(ratio, breaks = breaks_mc))
+  mutate(ratio_cut = cut(ratio, breaks = breaks_mc),
+         neg_exc = ifelse(is.na(ratio_cut), age, NA))
 
 unique(all3$ratio_cut)
 
@@ -167,13 +182,46 @@ all3 %>%
   filter(sex == "t") %>% 
   ggplot()+
   geom_tile(aes(date, age, fill = ratio_cut))+
-  scale_fill_manual(values = col2)+
+  # geom_tile(aes(date, neg_exc), col = "black", fill = "grey50")+
+  geom_point(aes(date, neg_exc), col = "white", size = 0.3)+
+  scale_fill_manual(values = col2, na.value = '#b7094c')+
   facet_wrap(region~.)+
-  # scale_fill_gradient2()+
   labs(title = "ratio excess / confirmed")+
-  theme_bw()
+  theme_bw()+
+  theme(legend.text = element_text(size = 5),
+        legend.title = element_text(size = 6))
 
 ggsave("figures/heatmap_ratios.pdf",
+       w = 10,
+       h = 5)
+
+ggsave("figures/heatmap_ratios.png",
+       dpi = 600,
+       w = 10,
+       h = 5)
+
+# smoothed heatmap
+all3 %>% 
+  filter(sex == "t",
+         age != "all") %>% 
+  ggplot()+
+  geom_raster(aes(date, age, fill = ratio_cut), interpolate = TRUE)+
+  # geom_tile(aes(date, neg_exc), col = "black", fill = "grey50")+
+  geom_point(aes(date, neg_exc), col = "grey70", size = 0.3)+
+  # scale_fill_manual(values = col2, na.value = '#b7094c')+
+  scale_fill_manual(values = col2, na.value = '#ff0054')+
+  facet_wrap(region~.)+
+  labs(title = "ratio excess / confirmed")+
+  theme_bw()+
+  theme(legend.text = element_text(size = 5),
+        legend.title = element_text(size = 6))
+
+ggsave("figures/heatmap_ratios_smooth.pdf",
+       w = 10,
+       h = 5)
+
+ggsave("figures/heatmap_ratios_smooth.png",
+       dpi = 600,
        w = 10,
        h = 5)
 
@@ -195,9 +243,9 @@ bsn %>%
   geom_vline(xintercept = ymd("2020-03-01"), linetype = "dashed")+
   theme_bw()+
   facet_wrap(age ~ region, scales = "free_y", ncol = 3)
-ggsave("figures/baselines.pdf",
-       w = 20,
-       h = 10)
+# ggsave("figures/baselines.pdf",
+#        w = 20,
+#        h = 10)
 
   
   # geom_ribbon(aes(date, ymin = incid_bsn_lp, ymax = incid_bsn_up), alpha = 0.2, fill = "#023e8a")+
@@ -210,5 +258,152 @@ ggsave("figures/baselines.pdf",
   # theme_bw()+
   # theme(legend.position = "none")
 
+
+
+
+
+
+# ratios age ====
+# ~~~~~~~~~~~~~~~
+
+pop <- 
+  read_rds("weekly_deaths_exposures_canada_statcan_isq.rds") %>% 
+  filter(date == "2021-01-02") %>% 
+  select(region, age, sex, exposure)
+
+pop_wide <- 
+  pop %>% 
+  spread(age, exposure) %>% 
+  mutate(mid_pop = `45` + `65`,
+         old_pop = `85`) %>% 
+  select(region, sex, mid_pop, old_pop)
+
+ratio_age_conf <- 
+  all %>% 
+  filter(source == "confirmed") %>% 
+  mutate(new = new + 1) %>% 
+  select(-new_lp, -new_up) %>% 
+  spread(age, new) %>% 
+  mutate(midage = `45` + `65`,
+         old = `85`) %>% 
+  left_join(pop_wide) %>% 
+  mutate(ratio = (old/old_pop) / (midage/mid_pop))
+
+ratio_age_conf %>% 
+  ggplot(aes(date, ratio))+
+  geom_point()+
+  geom_smooth(method=lm)+
+  scale_y_log10()+
+  scale_x_date(date_breaks = "3 month", date_labels = "%y%b")+
+  geom_hline(yintercept = 1, linetype = "dashed")+
+  # # 1
+  # geom_vline(xintercept = dmy("01-04-2020"), linetype = "dashed")+
+  # geom_vline(xintercept = dmy("15-06-2020"), linetype = "dashed")+
+  # # 2
+  # geom_vline(xintercept = dmy("01-10-2020"), linetype = "dashed")+
+  # geom_vline(xintercept = dmy("15-02-2021"), linetype = "dashed")+
+  # # 3
+  # geom_vline(xintercept = dmy("01-01-2022"), linetype = "dashed")+
+  # geom_vline(xintercept = dmy("01-04-2022"), linetype = "dashed")+
+  theme_bw()+
+  facet_grid(sex~region)+
+  scale_color_manual(values = c("red", "black"))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+ggsave("figures/ratios_age_conf_sc.pdf",
+       w = 10,
+       h = 5)
+
+ggsave("figures/ratios_age_conf_sc.png",
+       dpi = 600,
+       w = 10,
+       h = 5)
+
+
+# with excess
+ratio_age_exc <- 
+  all %>% 
+  filter(source == "excess_15_19") %>% 
+  select(-new_lp, -new_up) %>%
+  spread(age, new) %>% 
+  mutate(midage = `45` + `65`,
+         old = `85`,
+         midage = ifelse(midage < 1, 1, midage),
+         old = ifelse(old < 1, 1, old),
+         old_pop = old_pop,
+         mid_pop = mid_pop) %>% 
+  mutate(ratio = (old/old_pop) / (midage/mid_pop)) %>% 
+  mutate(midage = `45` + `65`,
+         old = `85`,
+         midage = ifelse(midage < 1, 1, midage),
+         old = ifelse(old < 1, 1, old)) %>% 
+  left_join(pop_wide) %>% 
+  mutate(ratio = (old/old_pop) / (midage/mid_pop))
+
+
+ratio_age_exc %>% 
+  ggplot(aes(date, ratio))+
+  geom_point()+
+  geom_smooth(method=lm)+
+  scale_y_log10()+
+  scale_x_date(date_breaks = "3 month", date_labels = "%y%b")+
+  geom_hline(yintercept = 1, linetype = "dashed")+
+  # # 1
+  # geom_vline(xintercept = dmy("01-04-2020"), linetype = "dashed")+
+  # geom_vline(xintercept = dmy("15-06-2020"), linetype = "dashed")+
+  # # 2
+  # geom_vline(xintercept = dmy("01-10-2020"), linetype = "dashed")+
+  # geom_vline(xintercept = dmy("15-02-2021"), linetype = "dashed")+
+  # # 3
+  # geom_vline(xintercept = dmy("01-01-2022"), linetype = "dashed")+
+  # geom_vline(xintercept = dmy("01-04-2022"), linetype = "dashed")+
+  theme_bw()+
+  facet_grid(sex~region)+
+  scale_color_manual(values = c("red", "black"))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+ggsave("figures/ratios_age_excs_sc.pdf",
+       w = 10,
+       h = 5)
+
+ggsave("figures/ratios_age_excs_sc.png",
+       dpi = 600,
+       w = 10,
+       h = 5)
+
+ratios <- 
+  bind_rows(ratio_age_exc %>% select(date, region, sex, ratio) %>% mutate(source = "excess"),
+            ratio_age_conf %>% select(date, region, sex, ratio) %>% mutate(source = "confirmed"))
+
+
+ratios %>% 
+  ggplot(aes(date, ratio, col = source))+
+  geom_point(alpha = 0.5)+
+  geom_smooth(method=lm)+
+  scale_y_log10()+
+  scale_x_date(date_breaks = "3 month", date_labels = "%y%b")+
+  geom_hline(yintercept = 1, linetype = "dashed")+
+  # # 1
+  # geom_vline(xintercept = dmy("01-04-2020"), linetype = "dashed")+
+  # geom_vline(xintercept = dmy("15-06-2020"), linetype = "dashed")+
+  # # 2
+  # geom_vline(xintercept = dmy("01-10-2020"), linetype = "dashed")+
+  # geom_vline(xintercept = dmy("15-02-2021"), linetype = "dashed")+
+  # # 3
+  # geom_vline(xintercept = dmy("01-01-2022"), linetype = "dashed")+
+  # geom_vline(xintercept = dmy("01-04-2022"), linetype = "dashed")+
+  theme_bw()+
+  facet_grid(sex~region)+
+  scale_color_manual(values = c("red", "black"))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+ggsave("figures/ratios_age_excs_conf_sc.pdf",
+       w = 10,
+       h = 5)
+
+ggsave("figures/ratios_age_excs_conf_sc.png",
+       dpi = 600,
+       w = 10,
+       h = 5)
 
 
