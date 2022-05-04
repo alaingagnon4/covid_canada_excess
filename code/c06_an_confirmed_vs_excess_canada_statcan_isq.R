@@ -260,9 +260,6 @@ bsn %>%
 
 
 
-
-
-
 # ratios age ====
 # ~~~~~~~~~~~~~~~
 
@@ -274,7 +271,9 @@ pop <-
 pop_wide <- 
   pop %>% 
   spread(age, exposure) %>% 
-  mutate(mid_pop = `45` + `65`,
+  # mutate(mid_pop = `45` + `65`,
+  #        old_pop = `85`) %>% 
+  mutate(mid_pop = `45`,
          old_pop = `85`) %>% 
   select(region, sex, mid_pop, old_pop)
 
@@ -284,7 +283,9 @@ ratio_age_conf <-
   mutate(new = new + 1) %>% 
   select(-new_lp, -new_up) %>% 
   spread(age, new) %>% 
-  mutate(midage = `45` + `65`,
+  # mutate(midage = `45` + `65`,
+  #        old = `85`) %>% 
+  mutate(midage = `45`,
          old = `85`) %>% 
   left_join(pop_wide) %>% 
   mutate(ratio = (old/old_pop) / (midage/mid_pop))
@@ -294,7 +295,8 @@ ratio_age_conf %>%
   geom_point()+
   geom_smooth(method=lm)+
   scale_y_log10()+
-  scale_x_date(date_breaks = "3 month", date_labels = "%y%b")+
+  # scale_x_date(date_breaks = "6 month", date_labels = "%m-%y")+
+  scale_x_date(date_labels = "%m-%y")+
   geom_hline(yintercept = 1, linetype = "dashed")+
   # # 1
   # geom_vline(xintercept = dmy("01-04-2020"), linetype = "dashed")+
@@ -307,8 +309,7 @@ ratio_age_conf %>%
   # geom_vline(xintercept = dmy("01-04-2022"), linetype = "dashed")+
   theme_bw()+
   facet_grid(sex~region)+
-  scale_color_manual(values = c("red", "black"))+
-  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+  scale_color_manual(values = c("red", "black"))
 
 ggsave("figures/ratios_age_conf_sc.pdf",
        w = 10,
@@ -326,14 +327,22 @@ ratio_age_exc <-
   filter(source == "excess_15_19") %>% 
   select(-new_lp, -new_up) %>%
   spread(age, new) %>% 
-  mutate(midage = `45` + `65`,
+  # mutate(midage = `45` + `65`,
+  #        old = `85`,
+  #        midage = ifelse(midage < 1, 1, midage),
+  #        old = ifelse(old < 1, 1, old),
+  #        old_pop = old_pop,
+  #        mid_pop = mid_pop) %>% 
+  mutate(midage = `45`,
          old = `85`,
          midage = ifelse(midage < 1, 1, midage),
-         old = ifelse(old < 1, 1, old),
-         old_pop = old_pop,
-         mid_pop = mid_pop) %>% 
-  mutate(ratio = (old/old_pop) / (midage/mid_pop)) %>% 
-  mutate(midage = `45` + `65`,
+         old = ifelse(old < 1, 1, old)) %>% 
+  # mutate(ratio = (old/old_pop) / (midage/mid_pop)) %>% 
+  # mutate(midage = `45` + `65`,
+  #        old = `85`,
+  #        midage = ifelse(midage < 1, 1, midage),
+  #        old = ifelse(old < 1, 1, old)) %>% 
+  mutate(midage = `45`,
          old = `85`,
          midage = ifelse(midage < 1, 1, midage),
          old = ifelse(old < 1, 1, old)) %>% 
@@ -346,7 +355,7 @@ ratio_age_exc %>%
   geom_point()+
   geom_smooth(method=lm)+
   scale_y_log10()+
-  scale_x_date(date_breaks = "3 month", date_labels = "%y%b")+
+  scale_x_date(date_labels = "%m-%y")+
   geom_hline(yintercept = 1, linetype = "dashed")+
   # # 1
   # geom_vline(xintercept = dmy("01-04-2020"), linetype = "dashed")+
@@ -381,7 +390,7 @@ ratios %>%
   geom_point(alpha = 0.5)+
   geom_smooth(method=lm)+
   scale_y_log10()+
-  scale_x_date(date_breaks = "3 month", date_labels = "%y%b")+
+  scale_x_date(date_labels = "%m-%y")+
   geom_hline(yintercept = 1, linetype = "dashed")+
   # # 1
   # geom_vline(xintercept = dmy("01-04-2020"), linetype = "dashed")+
@@ -402,6 +411,38 @@ ggsave("figures/ratios_age_excs_conf_sc.pdf",
        h = 5)
 
 ggsave("figures/ratios_age_excs_conf_sc.png",
+       dpi = 600,
+       w = 10,
+       h = 5)
+
+
+ratios %>% 
+  filter(sex == "t") %>% 
+  ggplot(aes(date, ratio, col = source))+
+  geom_point(alpha = 0.5)+
+  geom_smooth(method=lm)+
+  scale_y_log10()+
+  scale_x_date(date_labels = "%m-%y")+
+  geom_hline(yintercept = 1, linetype = "dashed")+
+  # # 1
+  # geom_vline(xintercept = dmy("01-04-2020"), linetype = "dashed")+
+  # geom_vline(xintercept = dmy("15-06-2020"), linetype = "dashed")+
+  # # 2
+  # geom_vline(xintercept = dmy("01-10-2020"), linetype = "dashed")+
+  # geom_vline(xintercept = dmy("15-02-2021"), linetype = "dashed")+
+  # # 3
+  # geom_vline(xintercept = dmy("01-01-2022"), linetype = "dashed")+
+  # geom_vline(xintercept = dmy("01-04-2022"), linetype = "dashed")+
+  theme_bw()+
+  facet_grid(sex~region)+
+  scale_color_manual(values = c("red", "black"))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+ggsave("figures/ratios_age_excs_conf_sc_totsex.pdf",
+       w = 10,
+       h = 5)
+
+ggsave("figures/ratios_age_excs_conf_sc_totsex.png",
        dpi = 600,
        w = 10,
        h = 5)

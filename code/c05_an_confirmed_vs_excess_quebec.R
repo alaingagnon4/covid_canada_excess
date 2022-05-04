@@ -102,6 +102,101 @@ unique(on$sex)
 unique(ab$age)
 unique(ab$sex)
 
+all2 <- 
+  all %>% 
+  select(source, date, age, new) %>% 
+  spread(source, new) %>% 
+  drop_na() %>% 
+  mutate(ratio_log = log(excess_15_19 / confirmed),
+         ratio = ifelse(confirmed > 0 & excess_15_19 > 0, excess_15_19 / confirmed, NA))
+
+max(all2$ratio)
+min(all2$ratio)
+
+
+all2 %>% 
+  #  filter(sex == "t") %>% 
+  ggplot()+
+  geom_tile(aes(date, age, fill = ratio))+
+  #facet_wrap(region~.)+
+  scale_fill_gradient2()+
+  labs(title = "Ratio surmortalité / décès COVID")+
+  theme_bw()
+
+
+all2 %>% 
+  #  filter(sex == "t") %>% 
+  ggplot()+
+  geom_tile(aes(date, age, fill = ratio_log))+
+  #  facet_wrap(region~.)+
+  scale_fill_gradient2()+
+  labs(title = "Ratio surmortalité / décès COVID")+
+  theme_bw()
+
+
+
+qt <- 6
+col2 <- c(colorRampPalette(c("#c1121f", "#fff0f3"), space = "Lab")(qt),
+          "white",
+          colorRampPalette(c("#caf0f8", "#03045e"), space = "Lab")(qt))
+
+breaks_mc <- c(0, seq(0.5, 0.9, 0.1), 
+               0.91, 1.1,
+               1/rev(seq(0.5, 0.9, 0.1)), 100)
+
+all3 <- 
+  all2 %>% 
+  mutate(ratio_cut = cut(ratio, breaks = breaks_mc), 
+         age = case_when(age=="0" ~ "0-49",
+                         age=="50" ~ "50-59",
+                         age=="60" ~ "60-69",
+                         age=="70" ~ "70-79",
+                         age=="80" ~ "80-89",
+                         age=="90" ~ "90+",
+                         age=="all" ~ "all"),
+         neg_exc = ifelse(is.na(ratio_cut), age, NA)) 
+
+unique(all3$ratio_cut)
+
+all3 %>% 
+  ggplot()+
+  geom_tile(aes(date, age, fill = ratio_cut))+
+  # geom_raster(aes(date, age, fill = ratio_cut), interpolate = TRUE)+
+  scale_fill_manual(values = col2, na.value = '#ff0054')+
+  geom_point(aes(date, neg_exc), col = "white", size = 0.3)+
+  labs(title = "Ratio surmortalité / décès COVID")+
+  labs(fill="Ratio")+
+  scale_x_date(date_labels = "%m-%Y")+
+  theme_bw()
+
+ggsave("figures/heatmap_ratios_quebec.pdf",
+       w = 5,
+       h = 5)
+
+ggsave("figures/heatmap_ratios_quebec.png", dpi=600,
+       w = 5,
+       h = 5)
+
+# smoothed
+all3 %>% 
+  ggplot()+
+  # geom_tile(aes(date, age, fill = ratio_cut))+
+  geom_raster(aes(date, age, fill = ratio_cut), interpolate = TRUE)+
+  geom_point(aes(date, neg_exc), col = "white", size = 0.3)+
+  scale_x_date(date_labels = "%m-%Y")+
+  scale_fill_manual(values = col2, na.value = '#ff0054')+
+  labs(title = "Ratio surmortalité / décès COVID")+
+  labs(fill="Ratio")+
+  # scale_x_date(date_breaks = "6 month")+
+  theme_bw()
+
+ggsave("figures/heatmap_ratios_quebec_smooth.pdf",
+       w = 5,
+       h = 5)
+
+ggsave("figures/heatmap_ratios_quebec_smooth.png", dpi=600,
+       w = 5,
+       h = 5)
 
 
 # ratios age ====
@@ -140,7 +235,7 @@ ratio_age_conf %>%
   geom_point()+
   geom_smooth(method=lm)+
   scale_y_log10()+
-  scale_x_date(date_breaks = "3 month", date_labels = "%y%b")+
+  scale_x_date(date_labels = "%m-%Y")+
   geom_hline(yintercept = 1, linetype = "dashed")+
   # 1
   geom_vline(xintercept = dmy("01-04-2020"), linetype = "dashed")+
@@ -185,7 +280,7 @@ ratio_age_exc %>%
   geom_point()+
   geom_smooth(method=lm)+
   scale_y_log10()+
-  scale_x_date(date_breaks = "3 month", date_labels = "%y%b")+
+  scale_x_date(date_labels = "%m-%Y")+
   geom_hline(yintercept = 1, linetype = "dashed")+
   # 1
   geom_vline(xintercept = dmy("01-04-2020"), linetype = "dashed")+
@@ -219,7 +314,7 @@ ratios %>%
   geom_point()+
   geom_smooth(method=lm)+
   scale_y_log10()+
-  scale_x_date(date_breaks = "3 month", date_labels = "%y%b")+
+  scale_x_date(date_labels = "%m-%Y")+
   geom_hline(yintercept = 1, linetype = "dashed")+
   # 1
   geom_vline(xintercept = dmy("01-04-2020"), linetype = "dashed")+

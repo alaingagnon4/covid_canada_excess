@@ -92,6 +92,7 @@ bsn <-
 
 write_rds(bsn, "data_inter/baseline_mortality_quebec_2010_2019.rds")
 
+bsn <- read_rds("data_inter/baseline_mortality_quebec_2010_2019.rds")
 
 
 # # test run using loops to identify problematic cases ====
