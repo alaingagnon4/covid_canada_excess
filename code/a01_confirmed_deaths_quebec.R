@@ -23,29 +23,38 @@ dts_qc2 <-
   arrange(date, age) %>% 
   ungroup()
 
-# harmonizing Ontario ages to those of StatCan ====
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# harmonizing Quebec ages to those of StatCan ====
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# dts_age_all <- 
+#   dts_qc2 %>% 
+#   group_by(date, sex) %>% 
+#   summarise(new = sum(new),
+#             dts = sum(dts)) %>% 
+#   ungroup() %>% 
+#   mutate(age = "all")
+
 dts_qc3 <- 
   dts_qc2 %>% 
-  filter(age != "All") %>% 
   group_by(date, sex) %>% 
-  do(harmonize_age_statcan(db = .data)) %>% 
+  do(harmonize_age_statcan_isq(db = .data)) %>% 
   ungroup()
 
 dts_qc4 <- 
   dts_qc3 %>% 
-  mutate(dts = round(dts)) %>%
-  group_by(age) %>% 
+  mutate(dts = round(dts)) %>% 
+  arrange(date, age) %>% 
+  group_by(age, format) %>% 
   mutate(new = dts - lag(dts),
          new = ifelse(is.na(new), 0, new)) %>% 
   ungroup()
 
 dts_qc4 %>% 
+  group_by(format) %>% 
   summarise(sum(new))
 
 dts_qc2 %>% 
   summarise(sum(new))
-
 
 # saving data
 write_rds(dts_qc4, "data_inter/confirmed_deaths_quebec.rds")

@@ -9,6 +9,7 @@ library(lubridate)
 library(ISOweek)
 library(mgcv)
 library(ungroup)
+library(MMWRweek)
 
 options(scipen=999)
 
@@ -21,12 +22,19 @@ weeks_dates <-
          year = epiyear(date),
          week = isoweek(date))
 
+
 # age harmonization in the same age groups as StatCan ====
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 harmonize_age_statcan <- function(db, lambda = 100){
   
-  age <- db$age %>% as.integer()
-  dts <- db$dts
+  temp1 <- 
+    db %>% 
+    filter(age != "all") %>% 
+    mutate(age = age %>% as.double())
+  
+  age <- temp1$age
+  dts <- temp1$dts
+  
   nlast <- 101 - max(age)
   
   # without offset
@@ -35,7 +43,42 @@ harmonize_age_statcan <- function(db, lambda = 100){
              # offset = pops,
              nlast = nlast)$fitted
   
-  out <- 
+  tibble(age = seq(0, 100, 1), dts = V1) %>% 
+    mutate(age = case_when(age <= 44 ~ 0,
+                           age %in% 45:64 ~ 45,
+                           age %in% 65:84 ~ 65,
+                           age %in% 85:110 ~ 85,
+                           TRUE ~ NA_real_)) %>% 
+    group_by(age) %>% 
+    summarise(dts = sum(dts)) %>% 
+    ungroup() %>% 
+    mutate(age = age %>% as.character) %>% 
+    bind_rows(db %>% 
+                filter(age == "all") %>% 
+                select(age, dts))
+}
+
+# age harmonization in the same age groups as StatCan ====
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+harmonize_age_statcan_isq <- function(db, lambda = 100){
+  
+  temp1 <- 
+    db %>% 
+    filter(age != "all") %>% 
+    mutate(age = age %>% as.double())
+  
+  age <- temp1$age
+  dts <- temp1$dts
+  
+  nlast <- 101 - max(age)
+  
+  # without offset
+  V1 <- pclm(x = age, 
+             y = dts, 
+             # offset = pops,
+             nlast = nlast)$fitted
+  
+  stc <- 
     tibble(age = seq(0, 100, 1), dts = V1) %>% 
     mutate(age = case_when(age <= 44 ~ 0,
                            age %in% 45:64 ~ 45,
@@ -43,9 +86,70 @@ harmonize_age_statcan <- function(db, lambda = 100){
                            age %in% 85:110 ~ 85,
                            TRUE ~ NA_real_)) %>% 
     group_by(age) %>% 
-    summarise(dts = sum(dts))
+    summarise(dts = sum(dts)) %>% 
+    bind_rows(db %>% 
+                filter(age == "all") %>% 
+                select(age, dts)) %>% 
+    mutate(format = "statcan")
+  
+  isq <- 
+    tibble(age = seq(0, 100, 1), dts = V1) %>% 
+    mutate(age = case_when(age <= 49 ~ 0,
+                           age %in% 50:59 ~ 50,
+                           age %in% 60:69 ~ 60,
+                           age %in% 70:79 ~ 70,
+                           age %in% 80:89 ~ 80,
+                           age >= 90 ~ 90,
+                           TRUE ~ NA_real_)) %>% 
+    group_by(age) %>% 
+    summarise(dts = sum(dts)) %>% 
+    ungroup() %>% 
+    bind_rows(db %>% 
+                filter(age == "all") %>% 
+                select(age, dts)) %>% 
+    mutate(format = "isq")
+
+  out <- 
+    bind_rows(stc, isq)
   
   return(out)
+  
+}
+
+# age harmonization in the same age groups as ISQ ====
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+harmonize_age_isq <- function(db, lambda = 100){
+  
+  temp1 <- 
+    db %>% 
+    filter(age != "all") %>% 
+    mutate(age = age %>% as.double())
+  
+  age <- temp1$age
+  dts <- temp1$dts
+  
+  nlast <- 101 - max(age)
+  
+  # without offset
+  V1 <- pclm(x = age, 
+             y = dts, 
+             # offset = pops,
+             nlast = nlast)$fitted
+  
+  tibble(age = seq(0, 100, 1), dts = V1) %>% 
+    mutate(age = case_when(age <= 49 ~ 0,
+                           age %in% 50:59 ~ 50,
+                           age %in% 60:69 ~ 60,
+                           age %in% 70:79 ~ 70,
+                           age %in% 80:89 ~ 80,
+                           age >= 90 ~ 90,
+                           TRUE ~ NA_real_)) %>% 
+    group_by(age) %>% 
+    summarise(dts = sum(dts)) %>% 
+    bind_rows(db %>% 
+                filter(age == "all") %>% 
+                select(age, dts))
+  
 }
 
 # db_d <- temp1
@@ -185,17 +289,17 @@ simul_intvals <-
     return(ints_simul)
   }
 
-db_in <- chunk
-
-db_in <-
-  dts %>%
-  filter(age == "85",
-         region == "Canada",
-         sex == "m")
-
-db_in <-
-  dts %>%
-  filter(age == "80")
+# db_in <- chunk
+# 
+# db_in <-
+#   dts %>%
+#   filter(age == "85",
+#          region == "Canada",
+#          sex == "m")
+# 
+# db_in <-
+#   dts %>%
+#   filter(age == "80")
 
 # Generalized function for baseline fitting and prediction
 # ========================================================
@@ -207,16 +311,14 @@ estimate_baseline <-
     exc_wks_ba_peak = 6,
     exc_wks = c(),
     id_p = "1976-01-01",
-    ld_p = "2020-12-31",
+    ld_p = "2021-12-31",
     exc_outlrs = T,
     outlrs_thld = 0.8,
     sec_trend_comp = "pspline",
     seasonal_comp = "sincos_1",
-    pred_invals = 0.95,
-    save_plot = T,
-    save_csv = T
+    pred_invals = 0.95
   ){
-    
+
     # define periods to fit and predict (train and prediction data)
     fit_per <- 
       seq(ymd(id_f), ymd(ld_f), 
@@ -432,7 +534,7 @@ estimate_baseline <-
         left_join(simul_intvals(model1, 
                                 model_type, 
                                 db_to_pred, 
-                                500, 
+                                200, 
                                 outlrs_thld),
                   by = "date") %>% 
         mutate(outlier = ifelse(dts > up & !is.na(dts), 1, 0)) %>% 
@@ -464,7 +566,7 @@ estimate_baseline <-
     pred <- predict(model, type = "response", newdata = db_to_pred)
     # exps <- db_to_pred$exposure
     
-    db_bsln_a <- 
+    db_bsln <- 
       db_to_pred %>% 
       left_join(outlrs,
                 by = "date") %>% 
@@ -473,20 +575,14 @@ estimate_baseline <-
       left_join(simul_intvals(model, 
                               model_type, 
                               db_to_pred, 
-                              500, 
+                              200, 
                               pred_invals),
                 by = "date")
-    
-    # appending to other ages estimates
-    db_bslns <- 
-      db_bsln_a 
-    
-    
     
     # output_data tibble with estimates
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     db_out <- 
-      db_bslns %>% 
+      db_bsln %>% 
       select(t, date, week, exposure, dts, ws, to_pred,
              seas_peak, outlier, bsn, lp, up) %>% 
       mutate(model_spec = paste0(sec_trend_comp, "_", seasonal_comp),
@@ -501,45 +597,19 @@ estimate_baseline <-
              bsn_mx = bsn / exposure,
              lp_mx = lp / exposure,
              up_mx = up / exposure)
-    
-    
-    # preparing metadata
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    
-    # # names for plot and csv files
-    # file_name <- paste0("sex_", str_flatten(sexes, "_"),
-    #                     "_age_", str_flatten(ages, "_"),
-    #                     "_model_", paste0(sec_trend_comp, "_", seasonal_comp),
-    #                     "_weeks_exc_", exc_wks_ba_peak,
-    #                     "_outliers_exc_", paste0(exc_outlrs, "_at_", outlrs_thld),
-    #                     "_pred_invals_", pred_invals)
-    # 
-    # 
-    # plot_title <- paste0("sex_", str_flatten(sexes, "_"),
-    #                      "_age_", str_flatten(ages, "_"),
-    #                      ", model: ", paste0(sec_trend_comp, "_", seasonal_comp),
-    #                      ", weeks exc: ", exc_wks_ba_peak,
-    #                      ", outliers exc: ", paste0(exc_outlrs, "_at_", outlrs_thld),
-    #                      ", pred: ", pred_invals)
-    # 
-    # plot_sub_title <- paste0("fitted ", id_f, " to ", ld_f,
-    #                          ", predicted ", id_p, " to ", ld_p)
-    
-    # meta <<-
-    #   list(sxs_dim = length(unique(db_out$sex)),
-    #        ags_dim = length(unique(db_out$age)),
-    #        per_dim = length(unique(db_out$date)),
-    #        plot_title = plot_title,
-    #        plot_sub_title = plot_sub_title,
-    #        file_name = file_name)
-    
+
     return(db_out)
     
   }
+
 
 epiyear <- function(x){
   # x <- ymd("2010-01-09")
   dn <- 1 + (wday(x) + 6) %% 7
   nth <- x + days(4 - dn)
   year(nth)
+}
+
+cdc_date <- function(y, w){
+  date1 <- ISOweek2date(paste0(y, "-W01-7"))-1 + ((w-1)*7)
 }

@@ -50,7 +50,7 @@ dts_all_age <-
   group_by(date, sex) %>% 
   summarise(new = sum(new)) %>% 
   ungroup() %>% 
-  mutate(age = "All")
+  mutate(age = "all")
 
 dts_all_age_sex <- 
   dts2 %>% 
@@ -58,7 +58,7 @@ dts_all_age_sex <-
   summarise(new = sum(new)) %>% 
   ungroup() %>% 
   mutate(sex = "t",
-         age = "All")
+         age = "all")
 
 dts_all_age_sex %>% 
   summarise(tot = sum(new))
@@ -91,12 +91,10 @@ dts4 <-
 # write_rds(dts4, "data_inter/confirmed_deaths_ontario.rds")
 
 
-
 # harmonizing Ontario ages to those of StatCan ====
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 dts5 <- 
   dts4 %>% 
-  filter(age != "All") %>% 
   group_by(date, sex) %>% 
   do(harmonize_age_statcan(db = .data)) %>% 
   ungroup()
@@ -104,7 +102,6 @@ dts5 <-
 
 # comparison between data by age and all deaths by week ====
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 # data for all ages
 daily_all <- 
   read_csv('data_input/ontario_All case trends data.csv') %>% 
@@ -144,7 +141,7 @@ daily_all %>%
 # both data
 dts_both <- 
   dts4 %>% 
-  filter(sex == "t", age == "All") %>% 
+  filter(sex == "t", age == "all") %>% 
   select(date, new) %>% 
   mutate(source = "by_age_sex") %>% 
   bind_rows(daily_all %>% 
@@ -168,7 +165,7 @@ dts_both %>%
 # imputation of age structure
 age_dist <- 
   dts5 %>% 
-  filter(age != "All", 
+  filter(age != "all", 
          sex != "t") %>% 
   mutate(date = date + days(14)) %>% 
   group_by(date) %>% 
